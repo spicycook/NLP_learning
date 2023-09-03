@@ -1,0 +1,121 @@
+---
+title: "Lab1_Yue_Tang"
+author: "Yue Tang"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setting up Twitter API
+
+```{r, error=TRUE}
+require(rtweet)
+require(readr)
+require(ggplot2)
+require(httr)
+require(jsonlite)
+require(dplyr)
+
+# twitter_token <- create_token(
+#   app = "Twitter API Access",
+#   consumer_key = "ohEq4qYveSEfBwGWt2wEycSwZ", 
+#   consumer_secret = "kXe9Kbotw9d56BBQiRzA1bGseBKAe2ZbrhTP53OS35eLjqzJB3",
+#   access_token = "1451460199114428421-pdUSHexeium0t147AQfXgWAQXDb2zq",
+#   access_secret = "miIRVyDi3qRsJ8TDXsQsz2kZuEAwrjVE6DrAdM5HIXadE")
+# 
+# token_key = data.frame(
+#   api_key = "ohEq4qYveSEfBwGWt2wEycSwZ", 
+#   api_key_secret = "kXe9Kbotw9d56BBQiRzA1bGseBKAe2ZbrhTP53OS35eLjqzJB3",
+#   bearer_token = "AAAAAAAAAAAAAAAAAAAAACXhpgEAAAAA8o1rn8j9155u%2FYWHOpUxj6rRvxA%3DCrTZWo9PZzUJsuNg8M1WbO0g4hEEc9sONLISllrTw19qIw7Itr",
+#   access_token = "1451460199114428421-pdUSHexeium0t147AQfXgWAQXDb2zq",
+#   access_token_secret = "miIRVyDi3qRsJ8TDXsQsz2kZuEAwrjVE6DrAdM5HIXadE"
+# )
+# write.csv(token_key, "token_key.csv", row.names = F)
+token_key = read.csv("token_key.csv")
+names(token_key)
+bearer_token <- token_key$bearer_token
+headers <- c(`Authorization` = sprintf('Bearer %s', bearer_token))
+
+
+home_directory <- path.expand("/Users/yue/Desktop/USA/Emory Study/2023Fall/2023Fall_BSHES740_ML_DrugHarms/Labs")
+file_name <- file.path(home_directory, "twitter_token.rds")
+saveRDS(twitter_token, file = file_name)
+cat(paste0("TWITTER_PAT=", file_name),
+    file = file.path(home_directory, ".Renviron"),
+    append = TRUE)
+
+#### Collect data using Twitter API ####
+# search
+data <-search_tweets("covid19",n=10,include_rts=FALSE)
+# access denied
+# Error: Twitter API failed [403]. Check error message at https://developer.twitter.com/en/support/twitter-api/error-troubleshooting 
+#  * You currently have access to a subset of Twitter API v2 endpoints and limited v1.1 endpoints (e.g. media post, oauth) only. If you need access to this endpoint, you may need a different access level. You can learn more here: https://developer.twitter.com/en/portal/product (453)
+
+colnames(data)
+
+# streaming
+stream_tweets(
+  "covid19",
+  timeout = 1000,
+  file_name = "covid19_streaming.json",
+  parse = FALSE,
+  include_rts=FALSE
+)
+
+# [CURRENTLY NOT SUPPORTED; THIS MIGHT BE TEMPORARY]
+
+# The only 3 endpointsI could use 
+# POST /2/tweets
+# DELETE /2/tweets/:id
+# GET /2/users/me
+
+```
+
+## View data collected via Twitter API
+
+```{r}
+
+covidtweets <- parse_stream("covid19_streaming_API_sample_2022.json")
+covidtweets2 <- parse_stream("covid19_streaming_API_sample_2022_2.json")
+covidtweets3 <- parse_stream("covid19_streaming_API_sample_2022_3.json")
+covidtweets <- rbind(covidtweets,covidtweets2,covidtweets3)
+rm(covidtweets2,covidtweets3)
+
+colnames(covidtweets)
+#covidtweets$created_at[1:10]
+
+# plot
+# What does a 2 second interval time series look like?
+ts_plot(covidtweets, by=2) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+    ggplot2::labs(x = "Seconds", y = "Frequency",
+                  title = "Frequency of 'covid19' tweets",
+                  subtitle = "Tweets per 2 second intervals",
+                  caption = "COVID19 data collected from Twitter search API")
+
+# What does a 3 second interval time series look like?
+ts_plot(covidtweets, by=3) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+    ggplot2::labs(x = "Seconds", y = "Frequency",
+                  title = "Frequency of 'covid19' tweets",
+                  subtitle = "Tweets per 3 second intervals",
+                  caption = "COVID19 data collected from Twitter search API")
+
+# What does a 5 second interval time series look like?
+ts_plot(covidtweets, by=5) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+    ggplot2::labs(x = "Seconds", y = "Frequency",
+                  title = "Frequency of 'covid19' tweets",
+                  subtitle = "Tweets per 5 second intervals",
+                  caption = "COVID19 data collected from Twitter search API")
+
+
+
+
+```
