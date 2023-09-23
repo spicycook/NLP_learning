@@ -104,6 +104,14 @@ def symptoms_dict():
     filtered_annot = annot[annot['Negation Flag'] == 0]
     # Create the lex_annot dictionary using 'Symptom Expressions' as keys and 'Symptom CUIs' as values
     lex_annot = dict(zip(filtered_annot['Symptom Expressions'], filtered_annot['Symptom CUIs']))
+    # count1 = []
+    # for key, value in lex_annot.items():
+    #     # Split the string into words using whitespace as the delimiter
+    #     words = key.split()
+    #     # Count the number of words
+    #     word_count = len(words)
+    #     # Print the result
+    #     count1.append(word_count)
     # Print the lex_annot dictionary
     # print("lex_annot Dictionary:")
     # print(lex_annot)
@@ -123,6 +131,16 @@ def symptoms_dict():
                 lex_std[columns[2]] = columns[1]
     # Print the dictionary
     # print(lex_std)
+    # count = []
+    # for key, value in lex_std.items():
+    #     # Split the string into words using whitespace as the delimiter
+    #     words = key.split()
+    #     # Count the number of words
+    #     word_count = len(words)
+    #     # Print the result
+    #     count.append(word_count)
+    # Filter the dictionary to keep only elements with fewer words in keys
+    # xxx = {key: value for key, value in lex_annot.items() if len(key.split()) < (max(count) )}
     '''
     Workflow 3: combine lex_std and lex_annot and remove duplicatesl; make a customized negation Lexicon, lex_neg
     '''
