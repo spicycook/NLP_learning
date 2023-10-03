@@ -209,7 +209,7 @@ ts_plot(substances_ts, title = "Frequency of Substances", Xtitle = "Date", Ytitl
 
 ##### Q8. Find the top 10 most frequent bigrams in posts that mentioned each of the substances. Plot a bar chart for these. (2 points)
 ```{r}
-require(quanteda)
+require(tokenizers)
 # get texts for each of the substances
 fent = text_all[fent_index]
 meth = text_all[meth_index]
