@@ -1,0 +1,247 @@
+---
+title: "Assignment1_Yue_Tang"
+author: "Yue Tang"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##### Load packages
+```{r, error=TRUE}
+rm(list=ls())
+require(tm)
+require(rtweet)
+require(stringr)
+require(lubridate)
+require(textcat)
+```
+
+##### Q1. What are the date ranges for the two sets? What information is provided in the CSV files? What are the languages in which tweets have been posted? (2 points)
+```{r}
+# Load data
+tada1 = unique(na.omit(read.csv("TADA_A1_set1.csv")))
+tada2 = unique(na.omit(read.csv("TADA_A1_set2.csv")))
+
+tada1$date = as.Date(tada1$date)
+tada2$date = as.Date(tada2$date)
+
+summary(tada1$date)
+summary(tada2$date)
+
+tada2 = tada2[!is.na(tada2$date),]
+summary(tada1$date)
+summary(tada2$date)
+
+names(tada1)
+names(tada1)
+
+print(paste(sort(unique(c(tada1$lang, tada2$lang))), collapse = ", "))
+```
+Dataset 1 ranges from 2019-11-01 to 2020-01-30, and Dataset 2 ranges from 202-02-01 to 2020-04-29. 
+
+The information available in the datasets is: user ID, post date, language of post, text content of post, and post location. 
+
+Post language includes: ar, ca, cs, cy, da, de, el, en, es, et, eu, fa, fi, fr, hi, ht, hu, in, is, it, iw, ja, ko, lt, lv, mr, nl, no, pl, pt, ro, ru, sl, sv, th, tl, tr, und, vi, zh. 
+
+##### Q2. What is the total number of posts in set 1? What is the total in set 2? (1 point)
+```{r}
+print("Number of post records:")
+print(str_c("Data set 1: ",nrow(tada1)))
+print(str_c("Data set 2: ",nrow(tada2)))
+
+print("Number of unique post contents:")
+print(str_c("Data set 1: ",length(unique(tada1$text))))
+print(str_c("Data set 2: ",length(unique(tada2$text))))
+```
+There are 171011 and 226847 post records in data set 1 and data set 2 respectively. There are 169279 and 225244 unique post texts in data set 1 and data set 2 respectively. 
+
+##### Q3. How many tweets are there for methadone, Suboxone, and fentanyl in total? Tip: sometimes alternative expressions are used for substances (eg., fent for fentanyl). (2 points)
+```{r}
+# define a function to do get_corpusing
+avail_stopwords = c()
+lang = c("ca", "da", "de", "en", "es", "fi", "fr", "hu", "it", "nl", "no", "pt", "ro", "ru", "sv")
+for(l in lang){
+  avail_stopwords = c(avail_stopwords, stopwords(l))
+}
+rm(l)
+
+get_corpus = function(data){
+  tweet_texts = data$text
+  tweet_text_corpus = Corpus(VectorSource(tweet_texts))
+  # lowercase
+  tweet_text_corpus = tm_map(tweet_text_corpus, content_transformer(tolower))
+  # remove stopwords
+  tweet_text_corpus = tm_map(tweet_text_corpus, removeWords, avail_stopwords)
+  # remove URLs
+  rmURL <- function(x) gsub("http[[:alnum:][:punct:]]*", "", x)
+  tweet_text_corpus = tm_map(tweet_text_corpus, content_transformer(rmURL))
+  # remove all punctuations
+  tweet_text_corpus = tm_map(tweet_text_corpus, removePunctuation)
+  # remove numbers
+  tweet_text_corpus = tm_map(tweet_text_corpus, removeNumbers)
+  # Stem the words in the corpus (tip: there is a stemDocument function)
+  tweet_text_corpus = tm_map(tweet_text_corpus, stemDocument)
+  return(tweet_text_corpus)
+}
+
+get_text = function(data){
+  rmURL <- function(x) gsub("http[[:alnum:][:punct:]]*", "", x)
+  text = data$text
+  text = stemDocument(removeNumbers(removePunctuation(rmURL(removeWords(tolower(text), avail_stopwords)))))
+  return(text)
+}
+
+# The questions following do not differentiate data set 1 and data set 2. Thus we combine the
+# two data sets and analyze the combo.
+tada = rbind(tada1, tada2)
+# In some questions, we don't need Corpus format, text is just enough
+text1 = get_text(tada1)
+text2 = get_text(tada2)
+text_all = c(text1,text2)
+# In some questions, we need Corpus
+tada_corpus = get_corpus(tada)
+tada1_corpus = get_corpus(tada1)
+tada2_corpus = get_corpus(tada2)
+
+text_all[2006]
+tada_corpus[[2006]]$content
+
+# Create a function to count mentions of a substance or its alternatives in the corpus
+count_mentions <- function(corpus, substance) {
+  # Use grepl with the provided regular expression pattern to check for mentions
+  mentions <- sum(grepl(substance, corpus, ignore.case = TRUE))
+  return(mentions)
+}
+# Get index of the documents that mentioned the substance in a corpus
+mention_index <-function(corpus, substance) {
+  # Use grepl with the provided regular expression pattern to check for mentions
+  mentions <- grepl(substance, corpus, ignore.case = TRUE)
+  return(mentions)
+}
+
+# Count mentions of fentanyl and its alternatives "fent" or "other_variant"
+fentanyl_mentions <- count_mentions(text_all, "fentanyl|fent|fentanil|fentnyl|fentenyl")
+methadone_mentions <- count_mentions(text_all, "methadone|methadon|methadonee")
+suboxone_mentions <- count_mentions(text_all, "suboxone|suboxon|suboxene|suboxen")
+# Print the results
+cat("Mentions of Methadone:", methadone_mentions, "\n")
+cat("Mentions of Suboxone:", suboxone_mentions, "\n")
+cat("Mentions of Fentanyl (including 'fent'):", fentanyl_mentions, "\n")
+# Total mentions for all substances
+total_mentions <- methadone_mentions + suboxone_mentions + fentanyl_mentions
+total_mentions2 = count_mentions(text_all, "fentanyl|fent|fentanil|fentnyl|fentenyl|methadone|methadon|methadonee|suboxone|suboxon|suboxene|suboxen")
+
+cat("Total Mentions:", total_mentions, "\n")
+cat("Total Mentions (remove duplicates that mentioned multiple substances):", total_mentions2, "\n")
+```
+A total of 381773 tweets mentioned methadone, Suboxone, or fentanyl.
+
+##### Q4. Are there fentanyl analogs that are also being discussed (eg., carfentanil)? (1 point)
+```{r}
+carfentanil_var = "carfentanil|carfentanyl|carfentnyl|carfentenyl"
+both =".*\\b(fentanyl|fent|fentanil|fentnyl|fentenyl)\\b.*\\b(carfentanil|carfentanyl|carfentnyl|carfentenyl)\\b.*"
+
+# Documents that mentioned just carfentanil
+carfentanil_mentions <- count_mentions(text_all, carfentanil_var)
+# Documents that mentioned both carfentanil and fentanyl
+both_mentions <- count_mentions(text_all, both)
+
+cat("Mentions of Carfentanil:", carfentanil_mentions, "\n")
+cat("Mentions of both Fentanyl and Carfentanil:", both_mentions, "\n")
+```
+There are 1452 posts that discussed Carfentanil, the analog of Fentanyl, Carfentanil. There 462 posts that discussed both Fentanyl and Carfentanil.
+
+##### Q5. What are some of the topics that are most closely associated with each of the three substances? The top 5-10 topics (if relevant) are acceptable. (2 points)
+```{r}
+fent_index <- mention_index(text_all, "fentanyl|fent|fentanil|fentnyl|fentenyl")
+meth_index <- mention_index(text_all, "methadone|methadon|methadonee")
+subo_index <- mention_index(text_all, "suboxone|suboxon|suboxene|suboxen")
+
+fent_dtm <- DocumentTermMatrix(get_corpus(tada[fent_index,]))
+meth_dtm <- DocumentTermMatrix(get_corpus(tada[meth_index,]))
+subo_dtm <- DocumentTermMatrix(get_corpus(tada[subo_index,]))
+
+print("View the 10 most frequent topics associated with Fentanyl:")
+top10_topic_fent = findFreqTerms(fent_dtm, lowfreq = 10, highfreq = Inf)
+print(top10_topic_fent[1:10])
+print("View the 10 most frequent topics associated with Methadone:")
+top10_topic_meth = findFreqTerms(meth_dtm, lowfreq = 10, highfreq = Inf)
+print(top10_topic_meth[1:10])
+print("View the 10 most frequent topics associated with Suboxone:")
+top10_topic_subo = findFreqTerms(subo_dtm, lowfreq = 10, highfreq = Inf)
+print(top10_topic_subo[1:10])
+
+```
+
+##### Q6. Generate word clouds for each set, so that they can be shown to the researcher. (2 points)
+```{r}
+# wordcloud
+require(wordcloud)
+wordcloud(tada1_corpus, min.freq=10, max.words=200, scale=c(4.5,.6), random.order=FALSE, colors=brewer.pal(12, "Set3"))
+wordcloud(tada2_corpus, min.freq=10, max.words=200, scale=c(4.5,.6), random.order=FALSE, colors=brewer.pal(12, "Set3"))
+```
+
+##### Q7. Generate appropriate time-series figures to compare how the frequencies of mentions of these substances differ. (2 points)
+```{r}
+require(data.table)
+require(TSstudio)
+tada$date = as_datetime(tada$date)
+tada_plot = tada
+tada_plot$text = text_all
+tada_plot$fent = fent_index
+tada_plot$subo = subo_index
+tada_plot$meth = meth_index
+tada_plot = data.table(tada_plot)
+
+fent_ts = tada_plot[,.(Fentanyl = sum(fent)),by=date]
+meth_ts = tada_plot[,.(Methadone = sum(meth)),by=date]
+subo_ts = tada_plot[,.(Suboxone = sum(subo)),by=date]
+
+substances_ts = merge(fent_ts,meth_ts, by="date")
+substances_ts = merge(substances_ts,subo_ts, by="date")
+rm(fent_ts,meth_ts,subo_ts)#,fent_index,meth_index,subo_index)
+
+ts_plot(substances_ts, title = "Frequency of Substances", Xtitle = "Date", Ytitle = "Frequency", Xgrid = T, Ygrid = T) 
+```
+
+##### Q8. Find the top 10 most frequent bigrams in posts that mentioned each of the substances. Plot a bar chart for these. (2 points)
+```{r}
+require(quanteda)
+# get texts for each of the substances
+fent = text_all[fent_index]
+meth = text_all[meth_index]
+subo = text_all[subo_index]
+# create bigrams fo each 
+bigrams_fent <- unlist(tokenize_ngrams(fent, n=2))
+bigrams_meth <- unlist(tokenize_ngrams(meth, n=2))
+bigrams_subo <- unlist(tokenize_ngrams(subo, n=2))
+# print out top 10 frequent bigrams for each of these substances
+top10_bigrams = function(bigrams){
+  # Count the frequency of each bigram
+  bigram_freq <- table(bigrams)
+  # Find the top 10 most frequent bigrams
+  top_10_bigrams <- head(sort(bigram_freq, decreasing = TRUE), 10)
+  # Print or analyze the top 10 most frequent bigrams
+  return(as.data.frame(top_10_bigrams))
+}
+top10_fent = top10_bigrams(bigrams_fent)
+top10_meth = top10_bigrams(bigrams_meth)
+top10_subo = top10_bigrams(bigrams_subo)
+
+# Step 3: Create the barplot
+barplot(top10_fent$Freq, names.arg = top10_fent$bigrams, cex.names = 0.6, main = "Bigram Frequency Barplot (Fentanyl)", xlab = NULL, ylab = "Frequency", col = "blue", las=2)
+
+barplot(top10_meth$Freq, names.arg = top10_meth$bigrams, cex.names = 0.6, main = "Bigram Frequency Barplot (Methadone)", xlab = NULL, ylab = "Frequency", col = "yellow", las=2)
+
+barplot(top10_subo$Freq, names.arg = top10_subo$bigrams, cex.names = 0.6, main = "Bigram Frequency Barplot (Suboxone)", xlab = NULL, ylab = "Frequency", col = "green", las=2)
+
+
+```
+
+##### Q9. Write a report (described below) for your experiments and results. (6 points)
+```{r}
+
+```
