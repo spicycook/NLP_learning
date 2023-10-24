@@ -1,0 +1,378 @@
+>>> import xgboost as xgb
+>>> xgb_classifier = xgb.XGBClassifier(subsample = 0.8, objective = "reg:logistic", 
+...                                    max_depth = 6, booster = 'gbtree', 
+...                                    eval_metric = 'auc')
+>>> 
+>>> for train_index, test_index in skf.split(texts_preprocessed,classes):
+...     texts_preprocessed_train = [texts_preprocessed[i] for i in train_index]
+...     texts_preprocessed_train_ = [texts_preprocessed_[i] for i in train_index]
+...     texts_preprocessed_dev = [texts_preprocessed[i] for i in test_index]
+...     texts_preprocessed_dev_ = [texts_preprocessed_[i] for i in test_index]
+...     # Feature 1: n-grams
+...     # VECTORIZE
+...     vectorizer = CountVectorizer(ngram_range=(1, 3), analyzer="word", tokenizer=None, stop_words='english', preprocessor=None,
+...                                     max_features=mx_ftr_gram)
+...     vectorizer.fit(texts_preprocessed_train)
+...     training_gram = vectorizer.transform(texts_preprocessed_train).toarray()
+...     test_gram = vectorizer.transform(texts_preprocessed_dev).toarray()
+...     # Feature 2: clusters
+...     clusters_train = []; clusters_train_ = [];
+...     clusters_dev = []; clusters_dev_ = [];
+...     #PROGRAMMING TIP: c++ style coding here can help when doing feature engineering.. see below
+...     clusters_train = getClusters(texts_preprocessed_train); clusters_dev = getClusters(texts_preprocessed_dev); 
+...     clusters_train_ = getClusters(texts_preprocessed_train_); clusters_dev_ = getClusters(texts_preprocessed_dev_)
+...     #VECTORIZE
+...     cluster_train = clustervectorizer.fit_transform(clusters_train).toarray(); cluster_dev = clustervectorizer.transform(clusters_dev).toarray();
+...     cluster_train_ = clustervectorizer.fit_transform(clusters_train_).toarray(); cluster_dev_ = clustervectorizer.transform(clusters_dev_).toarray()
+...     # Combine all features together
+...     training_data = np.concatenate((training_gram, cluster_train, cluster_train_, non_text_TRAIN.iloc[train_index]), axis=1)
+...     test_data = np.concatenate((test_gram,cluster_dev, cluster_dev_, non_text_TRAIN.iloc[test_index]),axis=1)
+...     ttp_train, ttp_test = classes[train_index], classes[test_index]
+...     grid_params = {
+...         'learning_rate': [0.1, 0.2],  # Learning rate
+...         'n_estimators': [50, 100, 200],  # Number of boosting rounds
+...         'lambda': [0.01, 0.1],
+...         'alpha': [0.01, 0.1]
+...         }
+...     results, grid = search_hyperparam_space(grid_params, xgb_classifier, training_data,ttp_train,test_data,ttp_test)
+...     print("Best parameters set found on development set:")
+...     print(grid.best_params_)
+...     print("Grid scores on development set:")
+...     means = grid.cv_results_['mean_test_score']
+...     stds = grid.cv_results_['std_test_score']
+...     for mean, std, params in zip(means, stds, grid.cv_results_['params']):
+...         print("%0.3f (+/-%0.03f) for %r"
+...                 % (mean, std * 2, params))
+...     # TRAIN THE MODEL
+...     xgb_classifier = grid.best_estimator_.fit(training_data, ttp_train)
+...     predictions = xgb_classifier.predict(test_data)    
+...     accuracy, f1_micro, f1_macro = accuracy_score(ttp_test, predictions), f1_score(ttp_test, predictions, average='micro'), f1_score(ttp_test, predictions, average='macro')
+...     # Print the results
+...     print(f'Accuracy: {accuracy:.2f}')
+...     print(f'Micro-averaged F1 Score: {f1_micro:.2f}')
+...     print(f'Macro-averaged F1 Score: {f1_macro:.2f}')
+... 
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+Grid scores on development set:
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.978 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.978 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.978 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+Accuracy: 1.00
+Micro-averaged F1 Score: 1.00
+Macro-averaged F1 Score: 1.00
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+Grid scores on development set:
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.985 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+0.985 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.985 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.989 (+/-0.030) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.985 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.985 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.985 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.985 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.985 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.985 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.989 (+/-0.030) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.989 (+/-0.030) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.989 (+/-0.030) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+Accuracy: 0.97
+Micro-averaged F1 Score: 0.97
+Macro-averaged F1 Score: 0.97
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+Grid scores on development set:
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.985 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.985 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.985 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.985 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.985 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.985 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.985 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.985 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.985 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+Accuracy: 1.00
+Micro-averaged F1 Score: 1.00
+Macro-averaged F1 Score: 1.00
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+Grid scores on development set:
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.989 (+/-0.044) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.989 (+/-0.044) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.989 (+/-0.044) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.978 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.978 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.978 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.978 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.985 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.985 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+Accuracy: 0.97
+Micro-averaged F1 Score: 0.97
+Macro-averaged F1 Score: 0.97
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+Grid scores on development set:
+0.974 (+/-0.038) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.978 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.978 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.978 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.978 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.978 (+/-0.036) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+0.978 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.978 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.978 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.974 (+/-0.038) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.978 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.978 (+/-0.036) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+Accuracy: 0.97
+Micro-averaged F1 Score: 0.97
+Macro-averaged F1 Score: 0.97
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+Grid scores on development set:
+0.970 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.974 (+/-0.044) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.978 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.978 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.978 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.970 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.967 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.978 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.970 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+0.970 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.970 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.974 (+/-0.044) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.970 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.970 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.970 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.970 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.970 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.978 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.978 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.978 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+Accuracy: 1.00
+Micro-averaged F1 Score: 1.00
+Macro-averaged F1 Score: 1.00
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+Grid scores on development set:
+0.959 (+/-0.055) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.967 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.967 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.963 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.967 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.963 (+/-0.047) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.959 (+/-0.055) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.967 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.970 (+/-0.044) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.966 (+/-0.055) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.966 (+/-0.055) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.966 (+/-0.055) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+0.970 (+/-0.044) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.970 (+/-0.044) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.970 (+/-0.044) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.963 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.963 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.963 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.963 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.963 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.967 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.966 (+/-0.044) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.963 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.963 (+/-0.047) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+Accuracy: 0.97
+Micro-averaged F1 Score: 0.97
+Macro-averaged F1 Score: 0.97
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+Grid scores on development set:
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.978 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.970 (+/-0.044) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+Accuracy: 0.97
+Micro-averaged F1 Score: 0.97
+Macro-averaged F1 Score: 0.97
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+Grid scores on development set:
+0.967 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.974 (+/-0.038) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.974 (+/-0.038) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.967 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.974 (+/-0.038) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.974 (+/-0.038) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.967 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.974 (+/-0.038) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.974 (+/-0.038) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.970 (+/-0.038) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.970 (+/-0.038) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.970 (+/-0.038) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+0.967 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.974 (+/-0.038) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.974 (+/-0.038) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.963 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.970 (+/-0.038) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.974 (+/-0.038) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.967 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.967 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.970 (+/-0.038) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.970 (+/-0.038) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.974 (+/-0.038) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.974 (+/-0.038) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+Accuracy: 1.00
+Micro-averaged F1 Score: 1.00
+Macro-averaged F1 Score: 1.00
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+Grid scores on development set:
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.970 (+/-0.060) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.970 (+/-0.060) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.970 (+/-0.060) for {'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.978 (+/-0.043) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.974 (+/-0.050) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.970 (+/-0.060) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.970 (+/-0.060) for {'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+0.981 (+/-0.041) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 100}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 200}
+0.970 (+/-0.060) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 50}
+0.974 (+/-0.050) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
+0.978 (+/-0.043) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+0.970 (+/-0.060) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 50}
+0.970 (+/-0.060) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 100}
+0.970 (+/-0.060) for {'alpha': 0.1, 'lambda': 0.1, 'learning_rate': 0.2, 'n_estimators': 200}
+Accuracy: 1.00
+Micro-averaged F1 Score: 1.00
+Macro-averaged F1 Score: 1.00
+
+
+
+
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 50}
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 100}
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+{'alpha': 0.01, 'lambda': 0.01, 'learning_rate': 0.2, 'n_estimators': 50}
+{'alpha': 0.01, 'lambda': 0.1, 'learning_rate': 0.1, 'n_estimators': 200}
+{'alpha': 0.1, 'lambda': 0.01, 'learning_rate': 0.1, 'n_estimators': 200}

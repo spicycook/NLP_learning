@@ -1,0 +1,222 @@
+>>> from sklearn.linear_model import LogisticRegression
+>>> lr_classifier = LogisticRegression()
+>>> for train_index, test_index in skf.split(texts_preprocessed,classes):
+...     texts_preprocessed_train = [texts_preprocessed[i] for i in train_index]
+...     texts_preprocessed_train_ = [texts_preprocessed_[i] for i in train_index]
+...     texts_preprocessed_dev = [texts_preprocessed[i] for i in test_index]
+...     texts_preprocessed_dev_ = [texts_preprocessed_[i] for i in test_index]
+...     # Feature 1: n-grams
+...     # VECTORIZE
+...     vectorizer = CountVectorizer(ngram_range=(1, 3), analyzer="word", tokenizer=None, stop_words='english', preprocessor=None,
+...                                     max_features=mx_ftr_gram)
+...     vectorizer.fit(texts_preprocessed_train)
+...     training_gram = vectorizer.transform(texts_preprocessed_train).toarray()
+...     test_gram = vectorizer.transform(texts_preprocessed_dev).toarray()
+...     # Feature 2: clusters
+...     clusters_train = []; clusters_train_ = [];
+...     clusters_dev = []; clusters_dev_ = [];
+...     #PROGRAMMING TIP: c++ style coding here can help when doing feature engineering.. see below
+...     clusters_train = getClusters(texts_preprocessed_train); clusters_dev = getClusters(texts_preprocessed_dev); 
+...     clusters_train_ = getClusters(texts_preprocessed_train_); clusters_dev_ = getClusters(texts_preprocessed_dev_)
+...     #VECTORIZE
+...     cluster_train = clustervectorizer.fit_transform(clusters_train).toarray(); cluster_dev = clustervectorizer.transform(clusters_dev).toarray();
+...     cluster_train_ = clustervectorizer.fit_transform(clusters_train_).toarray(); cluster_dev_ = clustervectorizer.transform(clusters_dev_).toarray()
+...     # Combine all features together
+...     training_data = np.concatenate((training_gram, cluster_train, cluster_train_, non_text_TRAIN.iloc[train_index]), axis=1)
+...     test_data = np.concatenate((test_gram,cluster_dev, cluster_dev_, non_text_TRAIN.iloc[test_index]),axis=1)
+...     ttp_train, ttp_test = classes[train_index], classes[test_index]
+...     grid_params = {
+...         'penalty': ['l1', 'l2'],  # Regularization type (L1 or L2)
+...         'C': [0.001, 0.01, 0.1, 1.0, 10.0],  # Inverse of regularization strength (smaller values for stronger regularization)
+...         'solver': ['liblinear']  # Solver algorithm
+...     }
+...     results, grid = search_hyperparam_space(grid_params, lr_classifier, training_data,ttp_train,test_data,ttp_test)
+...     print("Best parameters set found on development set:")
+...     print(grid.best_params_)
+...     print("Grid scores on development set:")
+...     means = grid.cv_results_['mean_test_score']
+...     stds = grid.cv_results_['std_test_score']
+...     for mean, std, params in zip(means, stds, grid.cv_results_['params']):
+...         print("%0.3f (+/-%0.03f) for %r"
+...                 % (mean, std * 2, params))
+...     # TRAIN THE MODEL
+...     lr_classifier = grid.best_estimator_.fit(training_data, ttp_train)
+...     predictions = lr_classifier.predict(test_data)    
+...     accuracy, f1_micro, f1_macro = accuracy_score(ttp_test, predictions), f1_score(ttp_test, predictions, average='micro'), f1_score(ttp_test, predictions, average='macro')
+...     # Print the results
+...     print(f'Accuracy: {accuracy:.2f}')
+...     print(f'Micro-averaged F1 Score: {f1_micro:.2f}')
+...     print(f'Macro-averaged F1 Score: {f1_macro:.2f}')
+... 
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+Grid scores on development set:
+0.509 (+/-0.062) for {'C': 0.001, 'penalty': 'l1', 'solver': 'liblinear'}
+0.866 (+/-0.071) for {'C': 0.001, 'penalty': 'l2', 'solver': 'liblinear'}
+0.707 (+/-0.086) for {'C': 0.01, 'penalty': 'l1', 'solver': 'liblinear'}
+0.903 (+/-0.029) for {'C': 0.01, 'penalty': 'l2', 'solver': 'liblinear'}
+0.896 (+/-0.019) for {'C': 0.1, 'penalty': 'l1', 'solver': 'liblinear'}
+0.900 (+/-0.055) for {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+0.911 (+/-0.036) for {'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.896 (+/-0.068) for {'C': 1.0, 'penalty': 'l2', 'solver': 'liblinear'}
+0.900 (+/-0.044) for {'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.892 (+/-0.071) for {'C': 10.0, 'penalty': 'l2', 'solver': 'liblinear'}
+Accuracy: 0.90
+Micro-averaged F1 Score: 0.90
+Macro-averaged F1 Score: 0.90
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+Grid scores on development set:
+0.509 (+/-0.078) for {'C': 0.001, 'penalty': 'l1', 'solver': 'liblinear'}
+0.896 (+/-0.029) for {'C': 0.001, 'penalty': 'l2', 'solver': 'liblinear'}
+0.752 (+/-0.239) for {'C': 0.01, 'penalty': 'l1', 'solver': 'liblinear'}
+0.900 (+/-0.038) for {'C': 0.01, 'penalty': 'l2', 'solver': 'liblinear'}
+0.900 (+/-0.019) for {'C': 0.1, 'penalty': 'l1', 'solver': 'liblinear'}
+0.903 (+/-0.027) for {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+0.918 (+/-0.055) for {'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.892 (+/-0.042) for {'C': 1.0, 'penalty': 'l2', 'solver': 'liblinear'}
+0.915 (+/-0.029) for {'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.885 (+/-0.042) for {'C': 10.0, 'penalty': 'l2', 'solver': 'liblinear'}
+Accuracy: 0.90
+Micro-averaged F1 Score: 0.90
+Macro-averaged F1 Score: 0.90
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+/usr/local/lib/python3.11/site-packages/sklearn/svm/_base.py:1250: ConvergenceWarning: Liblinear failed to converge, increase the number of iterations.
+  warnings.warn(
+Best parameters set found on development set:
+{'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+Grid scores on development set:
+0.509 (+/-0.062) for {'C': 0.001, 'penalty': 'l1', 'solver': 'liblinear'}
+0.840 (+/-0.111) for {'C': 0.001, 'penalty': 'l2', 'solver': 'liblinear'}
+0.699 (+/-0.079) for {'C': 0.01, 'penalty': 'l1', 'solver': 'liblinear'}
+0.896 (+/-0.056) for {'C': 0.01, 'penalty': 'l2', 'solver': 'liblinear'}
+0.888 (+/-0.023) for {'C': 0.1, 'penalty': 'l1', 'solver': 'liblinear'}
+0.892 (+/-0.059) for {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+0.907 (+/-0.033) for {'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.877 (+/-0.064) for {'C': 1.0, 'penalty': 'l2', 'solver': 'liblinear'}
+0.911 (+/-0.027) for {'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.874 (+/-0.071) for {'C': 10.0, 'penalty': 'l2', 'solver': 'liblinear'}
+Accuracy: 0.97
+Micro-averaged F1 Score: 0.97
+Macro-averaged F1 Score: 0.97
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+Grid scores on development set:
+0.524 (+/-0.064) for {'C': 0.001, 'penalty': 'l1', 'solver': 'liblinear'}
+0.848 (+/-0.113) for {'C': 0.001, 'penalty': 'l2', 'solver': 'liblinear'}
+0.695 (+/-0.083) for {'C': 0.01, 'penalty': 'l1', 'solver': 'liblinear'}
+0.900 (+/-0.045) for {'C': 0.01, 'penalty': 'l2', 'solver': 'liblinear'}
+0.888 (+/-0.023) for {'C': 0.1, 'penalty': 'l1', 'solver': 'liblinear'}
+0.915 (+/-0.029) for {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+0.922 (+/-0.043) for {'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.903 (+/-0.059) for {'C': 1.0, 'penalty': 'l2', 'solver': 'liblinear'}
+0.922 (+/-0.054) for {'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.907 (+/-0.052) for {'C': 10.0, 'penalty': 'l2', 'solver': 'liblinear'}
+Accuracy: 0.97
+Micro-averaged F1 Score: 0.97
+Macro-averaged F1 Score: 0.97
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+Grid scores on development set:
+0.513 (+/-0.074) for {'C': 0.001, 'penalty': 'l1', 'solver': 'liblinear'}
+0.881 (+/-0.050) for {'C': 0.001, 'penalty': 'l2', 'solver': 'liblinear'}
+0.695 (+/-0.086) for {'C': 0.01, 'penalty': 'l1', 'solver': 'liblinear'}
+0.907 (+/-0.053) for {'C': 0.01, 'penalty': 'l2', 'solver': 'liblinear'}
+0.896 (+/-0.030) for {'C': 0.1, 'penalty': 'l1', 'solver': 'liblinear'}
+0.911 (+/-0.036) for {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+0.911 (+/-0.036) for {'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.900 (+/-0.038) for {'C': 1.0, 'penalty': 'l2', 'solver': 'liblinear'}
+0.911 (+/-0.059) for {'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.892 (+/-0.036) for {'C': 10.0, 'penalty': 'l2', 'solver': 'liblinear'}
+Accuracy: 0.87
+Micro-averaged F1 Score: 0.87
+Macro-averaged F1 Score: 0.86
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+Grid scores on development set:
+0.595 (+/-0.157) for {'C': 0.001, 'penalty': 'l1', 'solver': 'liblinear'}
+0.866 (+/-0.078) for {'C': 0.001, 'penalty': 'l2', 'solver': 'liblinear'}
+0.706 (+/-0.069) for {'C': 0.01, 'penalty': 'l1', 'solver': 'liblinear'}
+0.892 (+/-0.027) for {'C': 0.01, 'penalty': 'l2', 'solver': 'liblinear'}
+0.885 (+/-0.028) for {'C': 0.1, 'penalty': 'l1', 'solver': 'liblinear'}
+0.892 (+/-0.042) for {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+0.911 (+/-0.054) for {'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.859 (+/-0.068) for {'C': 1.0, 'penalty': 'l2', 'solver': 'liblinear'}
+0.896 (+/-0.037) for {'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.855 (+/-0.058) for {'C': 10.0, 'penalty': 'l2', 'solver': 'liblinear'}
+Accuracy: 0.93
+Micro-averaged F1 Score: 0.93
+Macro-averaged F1 Score: 0.93
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+Grid scores on development set:
+0.520 (+/-0.109) for {'C': 0.001, 'penalty': 'l1', 'solver': 'liblinear'}
+0.863 (+/-0.095) for {'C': 0.001, 'penalty': 'l2', 'solver': 'liblinear'}
+0.729 (+/-0.141) for {'C': 0.01, 'penalty': 'l1', 'solver': 'liblinear'}
+0.881 (+/-0.037) for {'C': 0.01, 'penalty': 'l2', 'solver': 'liblinear'}
+0.881 (+/-0.037) for {'C': 0.1, 'penalty': 'l1', 'solver': 'liblinear'}
+0.892 (+/-0.042) for {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+0.903 (+/-0.059) for {'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.881 (+/-0.049) for {'C': 1.0, 'penalty': 'l2', 'solver': 'liblinear'}
+0.896 (+/-0.076) for {'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.885 (+/-0.058) for {'C': 10.0, 'penalty': 'l2', 'solver': 'liblinear'}
+Accuracy: 0.87
+Micro-averaged F1 Score: 0.87
+Macro-averaged F1 Score: 0.87
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+Grid scores on development set:
+0.528 (+/-0.067) for {'C': 0.001, 'penalty': 'l1', 'solver': 'liblinear'}
+0.866 (+/-0.097) for {'C': 0.001, 'penalty': 'l2', 'solver': 'liblinear'}
+0.703 (+/-0.059) for {'C': 0.01, 'penalty': 'l1', 'solver': 'liblinear'}
+0.892 (+/-0.036) for {'C': 0.01, 'penalty': 'l2', 'solver': 'liblinear'}
+0.877 (+/-0.037) for {'C': 0.1, 'penalty': 'l1', 'solver': 'liblinear'}
+0.881 (+/-0.028) for {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+0.903 (+/-0.059) for {'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.881 (+/-0.043) for {'C': 1.0, 'penalty': 'l2', 'solver': 'liblinear'}
+0.903 (+/-0.059) for {'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.881 (+/-0.049) for {'C': 10.0, 'penalty': 'l2', 'solver': 'liblinear'}
+Accuracy: 0.93
+Micro-averaged F1 Score: 0.93
+Macro-averaged F1 Score: 0.93
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+Grid scores on development set:
+0.505 (+/-0.106) for {'C': 0.001, 'penalty': 'l1', 'solver': 'liblinear'}
+0.877 (+/-0.038) for {'C': 0.001, 'penalty': 'l2', 'solver': 'liblinear'}
+0.684 (+/-0.024) for {'C': 0.01, 'penalty': 'l1', 'solver': 'liblinear'}
+0.877 (+/-0.038) for {'C': 0.01, 'penalty': 'l2', 'solver': 'liblinear'}
+0.877 (+/-0.030) for {'C': 0.1, 'penalty': 'l1', 'solver': 'liblinear'}
+0.885 (+/-0.028) for {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+0.914 (+/-0.056) for {'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.877 (+/-0.017) for {'C': 1.0, 'penalty': 'l2', 'solver': 'liblinear'}
+0.903 (+/-0.049) for {'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.874 (+/-0.055) for {'C': 10.0, 'penalty': 'l2', 'solver': 'liblinear'}
+Accuracy: 0.93
+Micro-averaged F1 Score: 0.93
+Macro-averaged F1 Score: 0.93
+CountVectorizer(max_features=3000, ngram_range=(1, 3), stop_words='english')
+Best parameters set found on development set:
+{'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+Grid scores on development set:
+0.511 (+/-0.086) for {'C': 0.001, 'penalty': 'l1', 'solver': 'liblinear'}
+0.863 (+/-0.060) for {'C': 0.001, 'penalty': 'l2', 'solver': 'liblinear'}
+0.685 (+/-0.033) for {'C': 0.01, 'penalty': 'l1', 'solver': 'liblinear'}
+0.889 (+/-0.033) for {'C': 0.01, 'penalty': 'l2', 'solver': 'liblinear'}
+0.881 (+/-0.030) for {'C': 0.1, 'penalty': 'l1', 'solver': 'liblinear'}
+0.881 (+/-0.030) for {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+0.900 (+/-0.060) for {'C': 1.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.870 (+/-0.041) for {'C': 1.0, 'penalty': 'l2', 'solver': 'liblinear'}
+0.889 (+/-0.070) for {'C': 10.0, 'penalty': 'l1', 'solver': 'liblinear'}
+0.878 (+/-0.038) for {'C': 10.0, 'penalty': 'l2', 'solver': 'liblinear'}
+Accuracy: 0.93
+Micro-averaged F1 Score: 0.93
+Macro-averaged F1 Score: 0.93
