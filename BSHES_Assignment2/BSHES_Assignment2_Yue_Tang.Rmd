@@ -1,0 +1,354 @@
+---
+title: "Assignment2_Yue_Tang"
+author: "Yue Tang"
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    df_print: paged
+---
+
+-   First, let's open some libraries that we'll be using
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(caTools)
+library(rfUtilities)
+library(tm)
+library(mlapi)
+library(e1071)
+```
+
+## Load Data
+
+```{r}
+rm(list=ls())
+data = read.csv("TADA_Annotated_data.csv", encoding = "UTF-8")
+data$text = iconv(data$text,"WINDOWS-1252","UTF-8")
+glimpse(data)
+```
+
+# Preprocess Texts
+
+```{r}
+# preprocessing is the same
+get_corpus = function(data){
+  texts = iconv(data$text,"WINDOWS-1252","UTF-8")
+  all_texts_corpus <- VCorpus(VectorSource(texts))
+  all_texts_corpus <- tm_map(all_texts_corpus, content_transformer(tolower))
+  all_texts_corpus <- tm_map(all_texts_corpus, removePunctuation)
+  all_texts_corpus <- tm_map(all_texts_corpus, removeWords,stopwords("english"))
+  all_texts_corpus <- tm_map(all_texts_corpus, stemDocument)
+  return(all_texts_corpus)
+}
+# DRC = drug-related chatter
+drc_corpus = get_corpus(data)
+```
+
+## Create N-grams
+
+```{r}
+NLP_tokenizer <- function(x) {
+  unlist(lapply(ngrams(words(x), 1:5), paste, collapse = "_"), use.names = FALSE)
+}
+ngrams <- tm_map(drc_corpus,content_transformer(NLP_tokenizer))
+```
+
+## Split Train & Test
+
+```{r}
+set.seed(2006)
+split <- sample.split(data$class,SplitRatio = 0.8)
+train_ngrams <- subset(ngrams, split==TRUE)
+test_ngrams <- subset(ngrams, split==FALSE)
+train_y <- subset(data$class, split==TRUE)
+test_y <- subset(data$class, split==FALSE)
+```
+
+## Generate Text-Based Features
+
+### Vectorizing Training Set and Test Set
+
+Vectorize, then remove sparse parts (get a dense matrix). Vectorize using training set vocabulary
+
+```{r}
+train_dct <- DocumentTermMatrix(train_ngrams)
+# Remove sparse terms
+train_dct <- removeSparseTerms(train_dct, 0.99)
+# test set, aka evaluation set
+test_dct <- DocumentTermMatrix(test_ngrams,list(dictionary=colnames(train_dct)))
+```
+
+## Format the Grams into Data Frame
+
+```{r}
+train_df <- as.data.frame(as.matrix(train_dct))
+test_df <- as.data.frame(as.matrix(test_dct))
+colnames(train_df) <- make.names(colnames(train_df))
+colnames(test_df) <- make.names(colnames(test_df))
+train_df$class = as.factor(train_y)
+```
+
+## Tune SVM Model
+
+### Parameter Search: Round 1
+```{r}
+i = 1
+while  (i <= 16){
+  trained_model <- svm(class ~., data=train_df, kernel = "linear", cross = 5, cost=i)
+  predictions <- predict(trained_model, newdata=test_df)
+  print(i)
+  print(accuracy(test_y,predictions))
+  i = i*2
+}
+```
+
+### Parameter Search: Round 2
+After round 1, we see that cost 2 and 4 both have the highest and the same accuracy *59.2871%*. Therefore, we repeat the search in a narrowed parameter space: cost = (2), 2.5, 3.0, 3.5, (4).
+
+```{r}
+for(i in c(2.5, 3.0, 3.5)){
+  trained_model <- svm(class ~., data=train_df, kernel = "linear", cross = 5, cost=i)
+  predictions <- predict(trained_model, newdata=test_df)
+  print(i)
+  print(accuracy(test_y,predictions))
+}
+```
+
+We notice that as cost increases to 3, the accuracy reaches the highest at *59.3496%*.
+
+## Tune Random Forest (RF) Model
+
+```{r}
+require(randomForest)
+# Train and tune Random Forest model
+set.seed(2006)
+for (n in seq(40, 500, 20)){
+  rf_model = randomForest(class ~. , data=train_df, ntree = n)
+  pred_rf <- predict(rf_model, test_df, type = "class")
+  acc <- sum(pred_rf == test_y) / length(test_y)
+  print(c("ntree=",round(n,0),";","Accuracy: ", round(acc, 6)))
+}
+
+
+```
+We see that, the RF model obtains the highest accuracy *0.604128* when ntree is *260*. 
+
+
+## Tune XGBoost Model
+
+```{r}
+# Convert the Species factor to an integer class starting at 0
+# This is picky, but it's a requirement for XGBoost
+require(xgboost)
+require(parallel)
+
+train_df$class=NULL
+# train_xgb = as.matrix(train_df[split==TRUE,])
+# test_xgb = as.matrix(test_df[split==FALSE,])
+
+# Transform the two data sets into xgb.Matrix
+xgb.train = xgb.DMatrix(data=as.matrix(train_df),label=train_y)
+xgb.test = xgb.DMatrix(data=as.matrix(test_df),label=test_y)
+
+
+num_class = length(levels(as.factor(data$class)))
+
+for(i in c(30, 50, 100, 200, 300)){
+  print(paste("Number of tress =",i))
+  
+  params = list(
+  booster="gbtree",
+  eta=0.3,
+  max_depth=5,
+  gamma=3,
+  subsample=0.8,
+  colsample_bytree=1,
+  num_parallel_tree = i,
+  objective="multi:softprob",
+  eval_metric="mlogloss",
+  num_class=num_class
+)
+# Train the XGBoost classifer
+xgb.fit=xgb.train(
+  params=params,
+  data=xgb.train,
+  nrounds=500,
+  nthreads=15,
+  early_stopping_rounds=10,
+  watchlist=list(val1=xgb.train,val2=xgb.test),
+  verbose=0
+)
+# Predict outcomes with the test data
+xgb.pred = predict(xgb.fit,as.matrix(test_df),reshape=T)
+xgb.pred = as.data.frame(xgb.pred)
+colnames(xgb.pred) = levels(as.factor(data$class))
+xgb.pred$prediction = apply(xgb.pred,1,function(x) colnames(xgb.pred)[which.max(x)])
+# xgb.pred$label = levels(as.factor(data$class))[test_y]
+acc = sum(xgb.pred$prediction==test_y)/length(test_y)
+print(paste("Final Accuracy =",sprintf("%1.2f%%", 100*acc)))
+
+}
+
+
+```
+For XGB classifier, the accuracy (*60.85%*) reaches the highest when number of trees is *30*.
+
+
+## Classify Unlabelled Data with the Best Classifier
+
+From the above results, we see that XGB classifier performs the best with *30* trees and the accuracy is *60.85%*. Therefore, we use XGB to classify the unlabeled data. Note that, we will use the full labeled data set to train our XGB classifier again for the unlabeled data.
+
+We train the XGB classifier with the full labeled data below.
+```{r}
+require(xgboost)
+require(parallel)
+
+train_df$class=NULL
+
+
+# Transform the two data sets into xgb.Matrix
+xgb.full = xgb.DMatrix(data=as.matrix(rbind(train_df, test_df)),label=c(train_y, test_y))
+
+num_class = length(levels(as.factor(data$class)))
+  params = list(
+  booster="gbtree",
+  eta=0.3,
+  max_depth=5,
+  gamma=3,
+  subsample=0.8,
+  colsample_bytree=1,
+  num_parallel_tree = 30,
+  objective="multi:softprob",
+  eval_metric="mlogloss",
+  num_class=num_class
+)
+# Train the XGBoost classifer
+xgb.fit=xgb.train(
+  params=params,
+  data=xgb.full,
+  nrounds=500,
+  nthreads=15,
+  early_stopping_rounds=10,
+  watchlist=list(val1=xgb.full,val2=xgb.full),
+  verbose=0
+)
+# Predict outcomes with the test data
+xgb.pred = predict(xgb.fit,xgb.full,reshape=T)
+xgb.pred = as.data.frame(xgb.pred)
+colnames(xgb.pred) = levels(as.factor(data$class))
+xgb.pred$prediction = apply(xgb.pred,1,function(x) colnames(xgb.pred)[which.max(x)])
+acc = sum(xgb.pred$prediction==c(train_y, test_y))/length(c(train_y, test_y))
+print(paste("Final Accuracy =",sprintf("%1.2f%%", 100*acc))) # "Final Accuracy = 65.79%"
+
+```
+ Use the trained classifier to classify unlabeled data.
+ 
+```{r}
+unlabel = read.csv("TADA_unlabeled_data - TADA_unlabeled_data.csv", encoding = "UTF-8")
+unlabel$text = iconv(unlabel$text,"WINDOWS-1252","UTF-8")
+
+
+# get ngrams for unlabel data
+unlabel_grams <- tm_map(get_corpus(unlabel),content_transformer(NLP_tokenizer))
+# get dt for unlabel data
+unlabel_dct <- DocumentTermMatrix(unlabel_grams,list(dictionary=colnames(train_dct)))
+unlabel_df <- as.data.frame(as.matrix(unlabel_dct))
+colnames(unlabel_df) <- make.names(colnames(unlabel_df))
+
+
+# classify unlabel data using trained classifier
+xgb.unlabel = xgb.DMatrix(data=as.matrix(unlabel_df),label=rep(0, nrow(unlabel_df)))
+xgb.pred = predict(xgb.fit,xgb.unlabel,reshape=T)
+xgb.pred = as.data.frame(xgb.pred)
+colnames(xgb.pred) = levels(as.factor(data$class))
+xgb.pred$prediction = apply(xgb.pred,1,function(x) colnames(xgb.pred)[which.max(x)])
+
+# add the predicted class to the unlabel data frame
+unlabel$pred_class = xgb.pred$prediction
+
+```
+
+
+## Post-Prediction Analyses
+
+### Location-based analysis
+```{r}
+pop_A = 500000
+pop_B = 10000
+
+# distribution of reports in each location
+table(unlabel$pred_class[unlabel$city=="A"])
+table(unlabel$pred_class[unlabel$city=="B"])
+
+# number of reports
+print(paste("Non-Medical Use in Location A =", sum(unlabel$pred_class==0L & unlabel$city=="A"))) 
+print(paste("Non-Medical Use in Location B =", sum(unlabel$pred_class==0L & unlabel$city=="B"))) 
+
+# proportion of tweets representing nonmedical use
+print(paste("Proportion of Tweets Representing Non-Medical Use in Location A =", sprintf("%1.2f%%", 100* sum(unlabel$pred_class==0L & unlabel$city=="A")/sum(unlabel$city=="A")))) 
+print(paste("Proportion of Tweets Representing Non-Medical Use in Location B =", sprintf("%1.2f%%", 100* sum(unlabel$pred_class==0L & unlabel$city=="B")/sum(unlabel$city=="B")))) 
+
+# population-adjusted report rate
+print(paste("Proportion of Tweets Representing Non-Medical Use in Location A =", sprintf("%1.2f%%", 100* sum(unlabel$pred_class==0L & unlabel$city=="A")/pop_A))) 
+print(paste("Proportion of Tweets Representing Non-Medical Use in Location B =", sprintf("%1.2f%%", 100* sum(unlabel$pred_class==0L & unlabel$city=="B")/pop_B))) 
+
+
+
+```
+### Gender-based analysis
+
+```{r}
+unlabel$nonmedical_use = ifelse(unlabel$pred_class==0, 1, 0)
+unlabel$gender = ifelse(unlabel$gender_id=="M", 1, 0)
+
+table(unlabel$nonmedical_use)
+table(unlabel$gender)
+
+table(unlabel$gender,unlabel$nonmedical_use)
+print(paste("Correlation between gender and non-medical use mention (Spearman) =", sprintf("%1.3f%%", 100*cor(unlabel$nonmedical_use, unlabel$gender, use = "everything", method = "spearman")))) 
+print(paste("Correlation between gender and non-medical use mention (Pearson) =", sprintf("%1.3f%%", 100*cor(unlabel$nonmedical_use, unlabel$gender, use = "everything", method = "pearson")))) 
+```
+### Presciption category analysis
+
+```{r}
+
+# Regular expressions
+opioids <- "\\b(opioid[s]?|painkiller[s]?|opiod[s]?|opiote[s]?|opiates?)\\b"
+stimulants <- "\\b(stimulant[s]?|ADHD medication[s]?|stimulent[s]?|stimulate[s]?|stimulat[s]?)\\b"
+benzos <- "\\b(benzo[s]?|benzodiazepine[s]?|benzoes?|benzos?|benzodizepines?)\\b"
+
+# Identify mentions
+opioids_mentions_label <- grep(opioids, data$text[data$class==0], ignore.case = TRUE, value = TRUE)
+stimulants_mentions_label <- grep(stimulants, data$text[data$class==0], ignore.case = TRUE, value = TRUE)
+benzos_mentions_label <- grep(benzos, data$text[data$class==0], ignore.case = TRUE, value = TRUE)
+
+
+opioids_mentions_unlabel <- grep(opioids, unlabel$text[unlabel$pred_class==0], ignore.case = TRUE, value = TRUE)
+stimulants_mentions_unlabel <- grep(stimulants, unlabel$text[unlabel$pred_class==0], ignore.case = TRUE, value = TRUE)
+benzos_mentions_unlabel <- grep(benzos, data$text[unlabel$pred_class==0], ignore.case = TRUE, value = TRUE)
+
+
+# Print results
+cat("Opioids Mentions (Labeled):", length(opioids_mentions_label), "\n")
+cat("Stimulants Mentions (Labeled):", length(stimulants_mentions_label), "\n")
+cat("Benzodiazepines Mentions (Labeled):", length(benzos_mentions_label), "\n")
+
+# Print results (proportion)
+cat("Proportion of Opioids in All Non-Medical Mentions (Labeled):", sprintf("%1.5f%%",100*length(opioids_mentions_label)/sum(data$class==0)), "\n")
+cat("Proportion of Stimulants in All Non-Medical Mentions (Labeled):", sprintf("%1.5f%%",100*length(stimulants_mentions_label)/sum(data$class==0)), "\n")
+cat("Proportion of Benzodiazepines in All Non-Medical Mentions (Labeled):", sprintf("%1.5f%%",100*length(benzos_mentions_label)/sum(data$class==0)), "\n")
+
+# Print results
+cat("Opioids Mentions (Unlabeled):", length(opioids_mentions_unlabel), "\n")
+cat("Stimulants Mentions (Unlabeled):", length(stimulants_mentions_unlabel), "\n")
+cat("Benzodiazepines Mentions (Unlabeled):", length(benzos_mentions_unlabel), "\n")
+
+# Print results (proportion)
+cat("Proportion of Opioids in All Non-Medical Mentions (Unlabeled):", sprintf("%1.5f%%",100*length(opioids_mentions_unlabel)/sum(unlabel$pred_class==0)), "\n")
+cat("Proportion of Stimulants in All Non-Medical Mentions (Unlabeled):", sprintf("%1.5f%%",100*length(stimulants_mentions_unlabel)/sum(unlabel$pred_class==0)), "\n")
+cat("Proportion of Benzodiazepines in All Non-Medical Mentions (Unlabeled):", sprintf("%1.5f%%",100*length(benzos_mentions_unlabel)/sum(unlabel$pred_class==0)), "\n")
+
+
+```
+
+
