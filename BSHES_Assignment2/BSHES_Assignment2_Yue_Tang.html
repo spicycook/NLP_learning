@@ -11,7 +11,7 @@
 
 <meta name="author" content="Yue Tang" />
 
-<meta name="date" content="2023-11-20" />
+<meta name="date" content="2023-11-21" />
 
 <title>Assignment2_Yue_Tang</title>
 
@@ -1623,7 +1623,7 @@ display: none;
 
 <h1 class="title toc-ignore">Assignment2_Yue_Tang</h1>
 <h4 class="author">Yue Tang</h4>
-<h4 class="date">2023-11-20</h4>
+<h4 class="date">2023-11-21</h4>
 
 </div>
 
@@ -2012,27 +2012,27 @@ print(paste(&quot;Final Accuracy =&quot;,sprintf(&quot;%1.2f%%&quot;, 100*acc)))
 
 }</code></pre>
 <pre><code>## [1] &quot;Number of tress = 30&quot;
-## [19:59:34] WARNING: src/learner.cc:767: 
+## [01:32:20] WARNING: src/learner.cc:767: 
 ## Parameters: { &quot;nthreads&quot; } are not used.
 ## 
 ## [1] &quot;Final Accuracy = 60.73%&quot;
 ## [1] &quot;Number of tress = 50&quot;
-## [20:06:18] WARNING: src/learner.cc:767: 
+## [01:39:02] WARNING: src/learner.cc:767: 
 ## Parameters: { &quot;nthreads&quot; } are not used.
 ## 
 ## [1] &quot;Final Accuracy = 60.48%&quot;
 ## [1] &quot;Number of tress = 100&quot;
-## [20:17:45] WARNING: src/learner.cc:767: 
+## [01:50:28] WARNING: src/learner.cc:767: 
 ## Parameters: { &quot;nthreads&quot; } are not used.
 ## 
 ## [1] &quot;Final Accuracy = 60.54%&quot;
 ## [1] &quot;Number of tress = 200&quot;
-## [20:40:45] WARNING: src/learner.cc:767: 
+## [02:13:19] WARNING: src/learner.cc:767: 
 ## Parameters: { &quot;nthreads&quot; } are not used.
 ## 
 ## [1] &quot;Final Accuracy = 60.54%&quot;
 ## [1] &quot;Number of tress = 300&quot;
-## [21:26:57] WARNING: src/learner.cc:767: 
+## [02:59:17] WARNING: src/learner.cc:767: 
 ## Parameters: { &quot;nthreads&quot; } are not used.
 ## 
 ## [1] &quot;Final Accuracy = 60.41%&quot;</code></pre>
@@ -2079,7 +2079,7 @@ xgb.fit=xgb.train(
   watchlist=list(val1=xgb.full,val2=xgb.full),
   verbose=0
 )</code></pre>
-<pre><code>## [22:38:09] WARNING: src/learner.cc:767: 
+<pre><code>## [04:09:08] WARNING: src/learner.cc:767: 
 ## Parameters: { &quot;nthreads&quot; } are not used.</code></pre>
 <pre class="r"><code># Predict outcomes with the test data
 xgb.pred = predict(xgb.fit,xgb.full,reshape=T)
@@ -2089,6 +2089,55 @@ xgb.pred$prediction = apply(xgb.pred,1,function(x) colnames(xgb.pred)[which.max(
 acc = sum(xgb.pred$prediction==c(train_y, test_y))/length(c(train_y, test_y))
 print(paste(&quot;Final Accuracy =&quot;,sprintf(&quot;%1.2f%%&quot;, 100*acc))) # &quot;Final Accuracy = 65.79%&quot;</code></pre>
 <pre><code>## [1] &quot;Final Accuracy = 65.84%&quot;</code></pre>
+<pre class="r"><code>require(caret)</code></pre>
+<pre><code>## Loading required package: caret</code></pre>
+<pre><code>## Warning: package &#39;caret&#39; was built under R version 4.2.3</code></pre>
+<pre><code>## Loading required package: ggplot2</code></pre>
+<pre><code>## Warning: package &#39;ggplot2&#39; was built under R version 4.2.3</code></pre>
+<pre><code>## 
+## Attaching package: &#39;ggplot2&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:randomForest&#39;:
+## 
+##     margin</code></pre>
+<pre><code>## The following object is masked from &#39;package:NLP&#39;:
+## 
+##     annotate</code></pre>
+<pre><code>## Loading required package: lattice</code></pre>
+<pre class="r"><code>print(confusionMatrix(as.factor(xgb.pred$prediction),as.factor(c(train_y, test_y)),mode=&quot;everything&quot;))</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    0    1    2    3
+##          0  919  348  259    3
+##          1  637 2500  539   44
+##          2  363  411 1500   70
+##          3    2   37   19  346
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.6584          
+##                  95% CI : (0.6479, 0.6688)
+##     No Information Rate : 0.4122          
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.4935          
+##                                           
+##  Mcnemar&#39;s Test P-Value : &lt; 2.2e-16       
+## 
+## Statistics by Class:
+## 
+##                      Class: 0 Class: 1 Class: 2 Class: 3
+## Sensitivity            0.4784   0.7585   0.6474  0.74730
+## Specificity            0.8996   0.7405   0.8514  0.99230
+## Pos Pred Value         0.6010   0.6720   0.6399  0.85644
+## Neg Pred Value         0.8451   0.8139   0.8555  0.98459
+## Precision              0.6010   0.6720   0.6399  0.85644
+## Recall                 0.4784   0.7585   0.6474  0.74730
+## F1                     0.5328   0.7127   0.6436  0.79815
+## Prevalence             0.2402   0.4122   0.2897  0.05790
+## Detection Rate         0.1149   0.3126   0.1876  0.04327
+## Detection Prevalence   0.1912   0.4652   0.2931  0.05052
+## Balanced Accuracy      0.6890   0.7495   0.7494  0.86980</code></pre>
 <p>Use the trained classifier to classify unlabeled data.</p>
 <pre class="r"><code>unlabel = read.csv(&quot;TADA_unlabeled_data - TADA_unlabeled_data.csv&quot;, encoding = &quot;UTF-8&quot;)
 unlabel$text = iconv(unlabel$text,&quot;WINDOWS-1252&quot;,&quot;UTF-8&quot;)

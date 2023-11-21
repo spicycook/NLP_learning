@@ -240,6 +240,10 @@ xgb.pred$prediction = apply(xgb.pred,1,function(x) colnames(xgb.pred)[which.max(
 acc = sum(xgb.pred$prediction==c(train_y, test_y))/length(c(train_y, test_y))
 print(paste("Final Accuracy =",sprintf("%1.2f%%", 100*acc))) # "Final Accuracy = 65.79%"
 
+require(caret)
+
+print(confusionMatrix(as.factor(xgb.pred$prediction),as.factor(c(train_y, test_y)),mode="everything"))
+
 ```
  Use the trained classifier to classify unlabeled data.
  
